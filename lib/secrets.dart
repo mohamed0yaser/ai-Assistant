@@ -1,0 +1,2 @@
+const openAIAPIKey = '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';
+const openAIAPIURL = 'https://api.openai.com/v1/chat/completions';
