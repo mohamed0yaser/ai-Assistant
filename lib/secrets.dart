@@ -1,2 +1,4 @@
-const openAIAPIKey = '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';
-const openAIAPIURL = 'https://api.openai.com/v1/chat/completions';
+class Secrets {
+static const  openAIAPIKey = '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';
+  static const openAIAPIURL = 'https://api.openai.com/v1/responses';
+}
