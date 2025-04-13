@@ -78,7 +78,14 @@ class _HomepageState extends State<Homepage> {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        leading: Icon(Icons.menu),
+        leading: IconButton(
+            onPressed: () {
+              generatedContent = null;
+              generatedImageUrl = null;
+              messageController.clear();
+              setState(() {});
+            },
+          icon :Icon(Icons.arrow_back_ios)),
         title: BounceInDown(child: Text('AI Assistant')),
         centerTitle: true,
       ),
@@ -268,10 +275,16 @@ class _HomepageState extends State<Homepage> {
                         onPressed: () async {
                           if (messageController.text.isNotEmpty) {
                             lastWords = messageController.text.trim();
-                            generatedContent = lastWords;
-                            generatedImageUrl = null;
-                            setState(() {});
-                            await speak(lastWords);
+                            if (lastWords.contains('https')) {
+                              generatedImageUrl = lastWords;
+                              generatedContent = null;
+                              setState(() {});
+                            } else {
+                              generatedContent = lastWords;
+                              generatedImageUrl = null;
+                              setState(() {});
+                              await speak(lastWords);
+                            }
                             await openAIService.isArtPromptAPI(lastWords);
                             messageController.clear();
                           }
