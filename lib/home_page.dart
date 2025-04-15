@@ -24,18 +24,38 @@ class _HomepageState extends State<Homepage> {
   String? generatedImageUrl;
   int start = 200;
   int end = 200;
+  bool isSpeaking = false;
 
   @override
   void initState() {
     super.initState();
     initSpeechToText();
     initTectToSpeech();
+    
+  
   }
 
   Future<void> initTectToSpeech() async {
     await flutterTts.setPitch(1);
     await flutterTts.setSpeechRate(0.5);
     await flutterTts.setSharedInstance(true);
+    flutterTts.setStartHandler(() {
+      setState(() {
+        isSpeaking = true;
+      });
+    });
+
+    flutterTts.setCompletionHandler(() {
+      setState(() {
+        isSpeaking = false;
+      });
+    });
+
+    flutterTts.setCancelHandler(() {
+      setState(() {
+        isSpeaking = false;
+      });
+    });
     setState(() {});
   }
 
@@ -45,7 +65,7 @@ class _HomepageState extends State<Homepage> {
   }
 
   Future<void> startListening() async {
-    await speechToText.listen(onResult: _onSpeechResult);
+    await speechToText.listen(onResult: onSpeechResult);
     setState(() {});
   }
 
@@ -54,11 +74,33 @@ class _HomepageState extends State<Homepage> {
     setState(() {});
   }
 
-  void _onSpeechResult(SpeechRecognitionResult result) {
+  void onSpeechResult(SpeechRecognitionResult result) async {
+      if (result.finalResult) {
+        setState(() {
+          lastWords = result.recognizedWords;
+        });
+
+        final speech = await openAIService.isArtPromptAPI(lastWords);
+
+        if (speech.contains('https')) {
+          generatedImageUrl = speech;
+          generatedContent = null;
+        } else {
+          generatedImageUrl = null;
+          generatedContent = speech;
+        }
+
+        setState(() {}); // Update UI after processing
+        await speak(speech);
+      }
+    
+
     setState(() {
+      print(result.recognizedWords);
       lastWords = result.recognizedWords;
     });
   }
+  
 
   final messageController = TextEditingController();
   @override
@@ -73,21 +115,35 @@ class _HomepageState extends State<Homepage> {
     await flutterTts.speak(text);
   }
 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
         leading: IconButton(
-            onPressed: () {
-              generatedContent = null;
-              generatedImageUrl = null;
-              messageController.clear();
-              setState(() {});
-            },
-          icon :Icon(Icons.arrow_back_ios)),
+          onPressed: () {
+            generatedContent = null;
+            generatedImageUrl = null;
+            messageController.clear();
+            setState(() {});
+          },
+          icon: Icon(Icons.arrow_back_ios),
+        ),
         title: BounceInDown(child: Text('AI Assistant')),
         centerTitle: true,
+        actions: [
+          Visibility(
+            visible: isSpeaking,
+            child: IconButton(
+              onPressed: () {
+                flutterTts.pause();
+                setState(() {});
+              },
+              icon: Icon(Icons.stop),
+            ),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -127,7 +183,7 @@ class _HomepageState extends State<Homepage> {
                     ),
                     FadeInRight(
                       child: Visibility(
-                        visible: generatedImageUrl == null ,
+                        visible: generatedImageUrl == null,
                         child: Container(
                           margin: EdgeInsets.symmetric(
                             horizontal: 40,
@@ -144,11 +200,13 @@ class _HomepageState extends State<Homepage> {
                           ),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 10.0),
-                            child: Text(  
-                             generatedContent == null ? 'Good Morning, What task can I do for you today?': generatedContent!,
+                            child: Text(
+                              generatedContent == null
+                                  ? 'Good Morning, What task can I do for you today?'
+                                  : generatedContent!,
                               style: TextStyle(
                                 fontFamily: 'Cera Pro',
-                                fontSize:generatedContent == null ? 20 : 18,
+                                fontSize: generatedContent == null ? 20 : 18,
                                 fontWeight: FontWeight.w500,
                                 color: Pallete.mainFontColor,
                               ),
@@ -172,7 +230,9 @@ class _HomepageState extends State<Homepage> {
                       ),
                     SlideInLeft(
                       child: Visibility(
-                        visible: generatedImageUrl == null && generatedContent == null,
+                        visible:
+                            generatedImageUrl == null &&
+                            generatedContent == null,
                         child: Container(
                           padding: EdgeInsets.all(10),
                           margin: EdgeInsets.only(top: 10, left: 25),
@@ -190,14 +250,15 @@ class _HomepageState extends State<Homepage> {
                       ),
                     ),
                     Visibility(
-                      visible: generatedImageUrl == null && generatedContent == null,
+                      visible:
+                          generatedImageUrl == null && generatedContent == null,
                       child: Column(
                         children: [
                           SlideInLeft(
                             delay: Duration(milliseconds: start),
                             child: FeatureBox(
                               color: Pallete.firstSuggestionBoxColor,
-                              headerText: 'Chat GPT',
+                              headerText: 'Gemini',
                               descriptionText:
                                   'An AI-driven chat engine that understands, responds, and evolves—making every conversation smarter',
                             ),
@@ -265,7 +326,9 @@ class _HomepageState extends State<Homepage> {
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(20),
-                              borderSide: BorderSide(color: Pallete.borderColor),
+                              borderSide: BorderSide(
+                                color: Pallete.borderColor,
+                              ),
                             ),
                           ),
                         ),
@@ -275,17 +338,22 @@ class _HomepageState extends State<Homepage> {
                         onPressed: () async {
                           if (messageController.text.isNotEmpty) {
                             lastWords = messageController.text.trim();
-                            if (lastWords.contains('https')) {
-                              generatedImageUrl = lastWords;
-                              generatedContent = null;
-                              setState(() {});
-                            } else {
-                              generatedContent = lastWords;
+                            final speech = await openAIService.isArtPromptAPI(
+                              lastWords,
+                            );
+                            if (speech.contains('https')) {
                               generatedImageUrl = null;
+                              generatedContent = speech;
                               setState(() {});
-                              await speak(lastWords);
+                              await speak(speech);
+                            } else {
+                              generatedImageUrl = null;
+                              generatedContent = speech;
+                              setState(() {});
+                              await speak(speech);
                             }
                             await openAIService.isArtPromptAPI(lastWords);
+                            await flutterTts.stop();
                             messageController.clear();
                           }
                         },
@@ -296,28 +364,34 @@ class _HomepageState extends State<Homepage> {
                         onPressed: () async {
                           if (await speechToText.hasPermission &&
                               speechToText.isNotListening) {
+                            await flutterTts.stop();
                             await startListening();
                           } else if (speechToText.isListening) {
-                            final speech = "hello world"; 
-                            /*await openAIService.isArtPromptAPI(
-                              lastWords,
-                            );*/
-                            if (speech.contains('https')) {
-                              generatedImageUrl = speech;
-                              generatedContent = null;
-                              setState(() {});
-                            } else {
-                              generatedContent = speech;
-                              generatedImageUrl = null;
-                              setState(() {});
-                              await speak(speech);
-                            }
-              
                             await stopListening();
+
+                              final speech = await openAIService.isArtPromptAPI(
+                                lastWords,
+                              );
+                              if (speech.contains('https')) {
+                                generatedImageUrl = null;
+                                generatedContent = speech;
+                                setState(() {});
+                                await speak(speech);
+                              } else {
+                                generatedImageUrl = null;
+                                generatedContent = speech;
+                                setState(() {});
+                                await speak(speech);
+                              }
+                            
                           } else {
-                            await openAIService.isArtPromptAPI(lastWords);
-                            await initSpeechToText();
+                            initSpeechToText();
+                            setState(() {
+                              
+                            });
                           }
+                          
+                          
                         },
                         child:
                             speechToText.isListening
