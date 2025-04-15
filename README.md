@@ -27,8 +27,8 @@ A voice-powered AI assistant built with Flutter, powered by Google's Gemini API.
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/ai-voice-assistant.git
-cd ai-voice-assistant
+git clone https://github.com/mohamed0yaser/ai-Assistant.git
+cd ai-Assistant
 ```
 
 ### 2. Add Your API Key
